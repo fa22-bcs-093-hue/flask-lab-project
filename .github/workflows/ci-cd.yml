@@ -1,0 +1,45 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install deps
+        run: |
+          pip install -r main/requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: pytest main/tests/
+
+      - name: Build Docker image
+        run: docker build -t flask-lab-project:latest main/
+
+      # Optional Docker Hub push (requires secrets in repo)
+      - name: Login to Docker Hub
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Docker image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag flask-lab-project:latest ${{ secrets.DOCKERHUB_USERNAME }}/flask-lab-project:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/flask-lab-project:latest
